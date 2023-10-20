@@ -1,4 +1,4 @@
-package auth_r
+package main
 
 import (
 	"time"
