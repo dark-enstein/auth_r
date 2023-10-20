@@ -1,4 +1,4 @@
-module github.com/dark-enstein/auth_r
+module github.com/dark-enstein/gauth
 
 go 1.20
 
