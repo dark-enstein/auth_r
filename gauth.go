@@ -1,6 +1,7 @@
 package gauth
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -8,6 +9,8 @@ import (
 
 // Be able to generate JWT tokens and validate,
 //and set up authentication and authorization stuff
+
+type JWTStrand string
 
 // Authenticator describes the method set that every authentication method
 // defined in this package must adhere to
@@ -18,31 +21,54 @@ type Authenticator interface {
 
 // UserJWTRequest serves as the request struct for JWTs
 type UserJWTRequest struct {
-	ID            string //uuid generated on login
+	// ID is Login request uuid generated
+	ID string
+	// Subject is the User id as registered in the datastore
 	Subject       string
 	Audience      string
 	ExpirationDur *time.Duration
 	Issuer        string
+	SignedByte    []byte
 }
 
 // JWT is the structure for JWT within this package
 type JWT struct {
 	Token *jwt.Token
 	//custom *jwt.MapClaims
+	str JWTStrand
 }
 
-func NewJWT(u *UserJWTRequest) *JWT {
+// NewJWT creates a new JWT struct with the parameters from the request struct
+func NewJWT(u *UserJWTRequest) (*JWT, error) {
 	claims := jwt.StandardClaims{}
 	claims.Subject = u.Subject
 	claims.Audience = u.Audience
 	claims.ExpiresAt = time.Now().Add(*u.ExpirationDur).UnixNano()
-	claims.Id = u.ID
+	claims.Id = u.ID // login ID
 	claims.Issuer = u.Issuer
 
-	return &JWT{
+	j := &JWT{
 		Token: jwt.NewWithClaims(jwt.SigningMethodHS256, claims),
 	}
+
+	str, err := j.Token.SignedString(u.SignedByte)
+	j.str = JWTStrand(str)
+	if err != nil {
+		return nil, err
+	}
+
+	return j, nil
 }
+
+// String returns the generated JWTStrand
+func (j *JWT) String() JWTStrand {
+	return j.str
+}
+
+//// Println returns the whole Token structure
+//func (j *JWT) Println() string {
+//	return j.Token.Claims(jwt.StandardClaims)
+//}
 
 // TODO: Implement custom JWT claims later
 //func (j *JWT) WithCustom(admin bool) *JWT {
@@ -61,4 +87,24 @@ func (j *JWT) IsValid() bool {
 		return false
 	}
 	return true
+}
+
+func (j *JWTStrand) Decode(secret []byte) (*JWT, error) {
+	ref := reflect.ValueOf(*j)
+	if ref.Kind() != reflect.String {
+		return nil, nil
+	}
+
+	token, err := jwt.ParseWithClaims(ref.String(), &jwt.StandardClaims{},
+		func(token *jwt.Token) (interface{}, error) {
+			return secret, nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return &JWT{
+		Token: token,
+		str:   *j,
+	}, nil
 }
