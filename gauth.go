@@ -1,10 +1,16 @@
 package gauth
 
 import (
+	"os"
 	"reflect"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/rs/zerolog"
+)
+
+var (
+	log = zerolog.New(os.Stdout)
 )
 
 // Be able to generate JWT tokens and validate,
@@ -19,7 +25,7 @@ type Authenticator interface {
 	WithCustom(admin bool) *JWT
 }
 
-// UserJWTRequest serves as the request struct for JWTs
+// UserJWTRequest serves as the request struct for generating JWT tokens
 type UserJWTRequest struct {
 	// ID is Login request uuid generated
 	ID string
@@ -62,7 +68,18 @@ func NewJWT(u *UserJWTRequest) (*JWT, error) {
 
 // String returns the generated JWTStrand
 func (j *JWT) String() JWTStrand {
+	log.Log().Msg("generated JWTStrand from JWT")
 	return j.str
+}
+
+// ToString converts the JWTStrand to string
+func (j *JWTStrand) ToString() string {
+	ref := reflect.ValueOf(*j)
+	if ref.Kind() != reflect.String {
+		return ""
+	}
+	log.Log().Msg("generated token string from JWTStrand")
+	return ref.String()
 }
 
 //// Println returns the whole Token structure
